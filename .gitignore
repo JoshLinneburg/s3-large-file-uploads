@@ -4,6 +4,9 @@
 # PyCharm
 *.idea/
 
+# Secrets
+*secrets
+
 # Large files
 *.mp3
 *.mp4
