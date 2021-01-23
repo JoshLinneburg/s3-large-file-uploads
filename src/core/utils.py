@@ -363,7 +363,7 @@ def upload_files(
             )
 
             if (not file_exists) or (file_exists and replace_if_exists):
-                print(f"Destination: {key}")
+                print(f"Destination: s3://{bucket_name}/{key}")
                 upload_file_to_s3(
                     s3_client=client,
                     path_to_file=file,
