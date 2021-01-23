@@ -119,6 +119,12 @@ if __name__ == "__main__":
         help="The name of the AWS profile to use (optional).",
     )
     parser.add_argument(
+        "--aws-region-name",
+        required=False,
+        default="us-east-2",
+        help="The name of the AWS region to use (optional).",
+    )
+    parser.add_argument(
         "--key-prefix",
         required=False,
         help="The prefix to use for each file in the S3 bucket (optional).",
@@ -151,6 +157,7 @@ if __name__ == "__main__":
         replace_if_exists=args.replace_if_exists,
         recursive=args.recursive,
         aws_profile_name=args.aws_profile_name if args.aws_profile_name else None,
+        aws_region_name=args.aws_region_name,
         key_prefix=args.key_prefix if args.key_prefix else None,
         extensions=tuple(args.extensions) if args.extensions else None,
     )
