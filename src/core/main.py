@@ -59,7 +59,6 @@ def main(
     )
 
     for file in files:
-        print("\n")
         print(f"Uploading file {files.index(file) + 1} of {len(files)}")
 
         if key_prefix:
