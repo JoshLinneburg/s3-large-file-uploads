@@ -13,6 +13,7 @@ from utils import (
 def main(
     root_path: str,
     bucket_name: str,
+    aws_region_name: str = "us-east-2",
     recursive: bool = False,
     replace_if_exists: bool = False,
     aws_profile_name: str = None,
@@ -24,15 +25,20 @@ def main(
 
     Parameters
     ----------
-    replace_if_exists
     root_path: str
         Root path where the files you want to upload to S3 are.
 
     bucket_name: str
         Name of the S3 bucket to upload to.
 
+    aws_region_name: str (Optional, default is us-east-2 (Ohio))
+        Name of the AWS region name to create the client object in.
+
     recursive: bool (Optional, default is True)
         Whether or not you want the program to recursively find files in subdirectories.
+
+    replace_if_exists: bool (Optional, default is False)
+        Whether to replace existing objects in S3 with a newer version.
 
     aws_profile_name: str (Optional)
         The name of the AWS profile to use - this will look in the ~/.aws/credentials file on your machine and
@@ -61,7 +67,7 @@ def main(
         boilerplate_warning()
 
         client = init_aws_client(
-            service_name="s3", profile_name=aws_profile_name, region_name="us-east-1"
+            service_name="s3", profile_name=aws_profile_name, region_name=aws_region_name
         )
 
         root_path_is_directory = check_path_is_directory(root_path=root_path)
