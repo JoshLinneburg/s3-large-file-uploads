@@ -24,7 +24,6 @@ class ProgressPercentage(object):
     def __call__(self, bytes_amount):
         # To simplify we'll assume this is hooked up to a single filename.
         with self._lock:
-            time.sleep(1)
             self._seen_so_far += bytes_amount
             percentage = (self._seen_so_far / self._size) * 100
             sys.stdout.write(
@@ -364,9 +363,7 @@ def upload_files(
             )
 
             if (not file_exists) or (file_exists and replace_if_exists):
-                print(key)
-                print(file_exists)
-                print(replace_if_exists)
+                print(f"Destination: {key}")
                 upload_file_to_s3(
                     s3_client=client,
                     path_to_file=file,
