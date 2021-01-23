@@ -196,7 +196,7 @@ def get_filenames_recursive(root_path: str, extensions: tuple = None) -> list:
 
 
 def get_filenames(
-    root_path: str, recursive: bool = True, extensions: tuple = None
+    root_path: str, recursive: bool = False, extensions: tuple = None
 ) -> Iterable:
     """
     Gets the filenames and absolute paths for those files from
@@ -207,7 +207,7 @@ def get_filenames(
     root_path: str
         Absolute root file path that contains files you wish to retrieve.
 
-    recursive: bool (Optional, default = True)
+    recursive: bool (Optional, default = False)
         Whether you want to recursively retrieve files in subdirectories or not.
 
     extensions: tuple (Optional)
