@@ -1,25 +1,30 @@
 import argparse
+import warnings
 
 from utils import (
     init_aws_client,
-    upload_file_to_s3,
     get_filenames,
+    check_path_is_directory,
+    upload_files,
+    boilerplate_warning,
 )
 
 
 def main(
-    root_path,
-    bucket_name,
-    recursive=False,
-    aws_profile_name=None,
-    key_prefix=None,
-    extensions=None,
+    root_path: str,
+    bucket_name: str,
+    recursive: bool = False,
+    replace_if_exists: bool = False,
+    aws_profile_name: str = None,
+    key_prefix: str = None,
+    extensions: tuple = None,
 ):
     """
     Main program entrypoint - runs the S3 video upload program.
 
     Parameters
     ----------
+    replace_if_exists
     root_path: str
         Root path where the files you want to upload to S3 are.
 
@@ -50,47 +55,45 @@ def main(
     None
     """
 
-    warning_string = (
-        "\nWarning! I am not responsible for any costs incurred on your personal AWS account for data storage.\n"
-        "You are responsible for managing your own S3 files once they are uploaded."
-    )
+    try:
+        files = []
 
-    print(warning_string)
+        boilerplate_warning()
 
-    while True:
-        response = input("Do you want to continue? Enter 'y' or 'n'.")
-
-        if response.lower().strip() not in ("y", "n", "yes", "no"):
-            print("Invalid response.")
-            continue
-        elif response.lower().strip() in ("y", "yes"):
-            break
-        elif response.lower().strip() in ("n", "no"):
-            exit()
-
-    client = init_aws_client(
-        service_name="s3", profile_name=aws_profile_name, region_name="us-east-1"
-    )
-
-    files = get_filenames(
-        root_path=root_path, recursive=recursive, extensions=extensions
-    )
-
-    for file in files:
-        print(f"Uploading file {files.index(file) + 1} of {len(files)}")
-
-        if key_prefix:
-            key = file.split("/")[-1]
-            key = f"{key_prefix}{key}"
-        else:
-            key = file
-
-        upload_file_to_s3(
-            s3_client=client,
-            path_to_file=file,
-            bucket_name=bucket_name,
-            object_key=key,
+        client = init_aws_client(
+            service_name="s3", profile_name=aws_profile_name, region_name="us-east-1"
         )
+
+        root_path_is_directory = check_path_is_directory(root_path=root_path)
+
+        if root_path_is_directory:
+            files = list(
+                get_filenames(
+                    root_path=root_path, recursive=recursive, extensions=extensions
+                )
+            )
+        elif not root_path_is_directory:
+            if recursive:
+                warnings.warn(
+                    message="Warning! Recursive flag does not change application state when uploading a single file!",
+                    category=RuntimeWarning,
+                )
+            files = [root_path]
+
+        print(files)
+
+        upload_files(
+            client=client,
+            files=files,
+            root_path=root_path,
+            replace_if_exists=replace_if_exists,
+            bucket_name=bucket_name,
+            key_prefix=key_prefix,
+            root_path_is_directory=root_path_is_directory,
+        )
+
+    except Exception as e:
+        raise e
 
 
 if __name__ == "__main__":
@@ -122,11 +125,16 @@ if __name__ == "__main__":
         help="List of valid file extensions to upload (optional).",
     )
     parser.add_argument(
-        "-r",
         "--recursive",
         action="store_true",
         required=False,
         help="Whether to recursively search for files in subdirectories (optional).",
+    )
+    parser.add_argument(
+        "--replace-if-exists",
+        action="store_true",
+        required=False,
+        help="Whether the program will replace files that already exist in S3.",
     )
 
     args = parser.parse_args()
@@ -134,6 +142,7 @@ if __name__ == "__main__":
     main(
         root_path=args.root_path,
         bucket_name=args.bucket_name,
+        replace_if_exists=args.replace_if_exists,
         recursive=args.recursive,
         aws_profile_name=args.aws_profile_name if args.aws_profile_name else None,
         key_prefix=args.key_prefix if args.key_prefix else None,

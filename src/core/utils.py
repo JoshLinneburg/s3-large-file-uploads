@@ -2,9 +2,9 @@ import boto3
 import os
 import sys
 import threading
+import time
 from boto3.s3.transfer import TransferConfig
 from botocore.exceptions import ClientError
-from typing import Iterable
 
 CONFIG = TransferConfig(
     multipart_threshold=os.environ.get("multipart_threshold") or 1024 * 25,
@@ -24,6 +24,7 @@ class ProgressPercentage(object):
     def __call__(self, bytes_amount):
         # To simplify we'll assume this is hooked up to a single filename.
         with self._lock:
+            time.sleep(1)
             self._seen_so_far += bytes_amount
             percentage = (self._seen_so_far / self._size) * 100
             sys.stdout.write(
@@ -75,6 +76,35 @@ def init_aws_client(
         raise e
 
 
+def check_object_exists(
+    s3_client: boto3.client, bucket_name: str, object_key: str
+) -> bool:
+    """
+    Checks whether an object already exists in AWS S3.
+
+    Parameters
+    ----------
+    s3_client: boto3.client
+        Boto3 S3 client.
+
+    bucket_name: str
+        Name of the S3 bucket to check for the object.
+
+    object_key: str
+        Name of the object in the bucket_name S3 Bucket.
+
+    Returns
+    -------
+    bool
+        Whether or not the object exists in the S3 location specified.
+    """
+    try:
+        response = s3_client.get_object(Bucket=bucket_name, Key=object_key)
+        return True
+    except s3_client.exceptions.NoSuchKey:
+        return False
+
+
 def upload_file_to_s3(
     s3_client: boto3.client, path_to_file: str, bucket_name: str, object_key: str
 ) -> None:
@@ -99,14 +129,19 @@ def upload_file_to_s3(
     -------
     None
     """
-    with open(path_to_file, "rb") as f:
-        s3_client.upload_fileobj(
-            Fileobj=f,
-            Bucket=bucket_name,
-            Key=object_key,
-            Callback=ProgressPercentage(path_to_file),
-            Config=CONFIG,
-        )
+    try:
+
+        with open(path_to_file, "rb") as f:
+            s3_client.upload_fileobj(
+                Fileobj=f,
+                Bucket=bucket_name,
+                Key=object_key,
+                Callback=ProgressPercentage(path_to_file),
+                Config=CONFIG,
+            )
+
+    except Exception as e:
+        raise e
 
 
 def clean_file_list(root_path: str, files: list, extensions: tuple = None) -> list:
@@ -131,17 +166,21 @@ def clean_file_list(root_path: str, files: list, extensions: tuple = None) -> li
     files_to_return: list
         List of absolute path file names of the desired extension.
     """
-    files_to_return = []
+    try:
+        files_to_return = []
 
-    if extensions:
-        files = [file for file in files if file.endswith(extensions)]
-    for file in files:
-        files_to_return.append(os.path.join(root_path, file).replace("\\", "/"))
+        if extensions:
+            files = [file for file in files if file.endswith(extensions)]
+        for file in files:
+            files_to_return.append(os.path.join(root_path, file).replace("\\", "/"))
 
-    return files_to_return
+        return files_to_return
+
+    except Exception as e:
+        raise e
 
 
-def get_filenames_flat(root_path: str, extensions: tuple = None) -> Iterable:
+def get_filenames_flat(root_path: str, extensions: tuple = None) -> list:
     """
     Gathers up all filenames in a directory - does not return filenames
     contained in subdirectories.
@@ -159,13 +198,19 @@ def get_filenames_flat(root_path: str, extensions: tuple = None) -> Iterable:
     files_to_return: list
         List of absolute file paths for all files in all directories under root_path.
     """
-    files = [
-        name
-        for name in os.listdir(root_path)
-        if not os.path.isdir(os.path.join(root_path, name))
-    ]
+    try:
+        files = [
+            name
+            for name in os.listdir(root_path)
+            if not os.path.isdir(os.path.join(root_path, name))
+        ]
 
-    return clean_file_list(root_path=root_path, files=files, extensions=extensions)
+        return list(
+            clean_file_list(root_path=root_path, files=files, extensions=extensions)
+        )
+
+    except Exception as e:
+        raise e
 
 
 def get_filenames_recursive(root_path: str, extensions: tuple = None) -> list:
@@ -185,19 +230,23 @@ def get_filenames_recursive(root_path: str, extensions: tuple = None) -> list:
     files_to_return: list
         List of absolute file paths for all files in all directories under root_path.
     """
-    files_to_return = []
+    try:
+        files_to_return = []
 
-    for root, dirs, files in os.walk(top=root_path):
-        files_to_return += clean_file_list(
-            root_path=root, files=files, extensions=extensions
-        )
+        for root, dirs, files in os.walk(top=root_path):
+            files_to_return += clean_file_list(
+                root_path=root, files=files, extensions=extensions
+            )
 
-    return files_to_return
+        return files_to_return
+
+    except Exception as e:
+        raise e
 
 
 def get_filenames(
     root_path: str, recursive: bool = False, extensions: tuple = None
-) -> Iterable:
+) -> list:
     """
     Gets the filenames and absolute paths for those files from
     the root_path specified.
@@ -218,9 +267,145 @@ def get_filenames(
     files: list
         Files from the root_path with the desired extensions.
     """
-    if recursive:
-        files = get_filenames_recursive(root_path=root_path, extensions=extensions)
-    else:
-        files = get_filenames_flat(root_path=root_path, extensions=extensions)
 
-    return files
+    try:
+
+        if recursive:
+            files = get_filenames_recursive(root_path=root_path, extensions=extensions)
+        else:
+            files = get_filenames_flat(root_path=root_path, extensions=extensions)
+
+        return list(files)
+
+    except Exception as e:
+        raise e
+
+
+def check_path_is_directory(root_path):
+    """
+    Checks whether the root_path is a directory, a file, or does not exist.
+
+    Parameters
+    ----------
+    root_path: str
+        Path on the filesystem.
+
+    Returns
+    -------
+    bool
+        Whether the path is a directory (True), a file (False).
+        If the path does not exist, the program raises a FileNotFoundError.
+    """
+    if os.path.isdir(root_path):
+        return True
+    elif os.path.exists(root_path):
+        return False
+    else:
+        raise FileNotFoundError(f"{root_path} does not exist as a file or directory!")
+
+
+def upload_files(
+    client: boto3.client,
+    files: list,
+    root_path: str,
+    replace_if_exists: bool,
+    root_path_is_directory: bool,
+    bucket_name: str,
+    key_prefix: str = None,
+):
+    """
+    Uploads a list of files to S3.
+
+    Parameters
+    ----------
+    client: boto3.client
+        Boto3 S3 client.
+
+    files: list
+        List of filenames to upload
+
+    root_path: str
+        The root path where the files are located. In the case of single-file uploads,
+        this is just the location of the file.
+
+    replace_if_exists: bool
+        Whether to replace files that already exist in S3.
+
+    root_path_is_directory: bool
+        Whether the root_path passed in is a directory or a single file.
+
+    bucket_name: str
+        The name of the destination S3 Bucket.
+
+    key_prefix: str (Optional)
+        The key prefix of the files you wish to upload. If you do not specify this,
+        the files will be uploaded using the absolute path from your computer.
+
+        E.g., if this is not passed in, your files will be located as C:/Users/path/to/files/
+        in the S3 bucket.
+
+    Returns
+    -------
+    None
+    """
+    try:
+        for file in files:
+            print(f"Uploading file {files.index(file) + 1} of {len(files)}")
+
+            if key_prefix and root_path_is_directory:
+                key = file.replace(root_path, key_prefix)
+            elif key_prefix and not root_path_is_directory:
+                key = f"{key_prefix}{file.split('/')[-1]}"
+            else:
+                key = file
+
+            file_exists = check_object_exists(
+                s3_client=client, bucket_name=bucket_name, object_key=key
+            )
+
+            if (not file_exists) or (file_exists and replace_if_exists):
+                print(key)
+                print(file_exists)
+                print(replace_if_exists)
+                upload_file_to_s3(
+                    s3_client=client,
+                    path_to_file=file,
+                    bucket_name=bucket_name,
+                    object_key=key,
+                )
+            else:
+                print("File already exists in S3 and will not be replaced.")
+
+    except Exception as e:
+        raise e
+
+
+def boilerplate_warning():
+    """
+    Warns the user about S3 data usage - prompts them for a "Y" or "N" response
+    before allowing the program to continue.
+
+    If the user elects to not continue with the upload, responding with an "N",
+    the program exits.
+
+    Returns
+    -------
+    None
+    """
+    warning_string = (
+        "\nWarning! I am not responsible for any costs incurred on your personal AWS account for data storage.\n"
+        "You are responsible for managing your own S3 files once they are uploaded."
+    )
+
+    print(warning_string)
+
+    while True:
+        response = input("Do you want to continue? Enter 'y' or 'n'.")
+
+        if response.lower().strip() not in ("y", "n", "yes", "no"):
+            print("Invalid response.")
+            continue
+        elif response.lower().strip() in ("y", "yes"):
+            break
+        elif response.lower().strip() in ("n", "no"):
+            exit()
