@@ -28,8 +28,8 @@ def main(
         print(f"Uploading file {files.index(file) + 1} of {len(files)}")
 
         if key_prefix:
-            key = file.split('/')[-1]
-            key = f'{key_prefix}{key}'
+            key = file.split("/")[-1]
+            key = f"{key_prefix}{key}"
         else:
             key = file
 
