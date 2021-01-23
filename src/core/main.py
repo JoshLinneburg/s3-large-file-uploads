@@ -86,8 +86,6 @@ def main(
                 )
             files = [root_path]
 
-        print(files)
-
         upload_files(
             client=client,
             files=files,

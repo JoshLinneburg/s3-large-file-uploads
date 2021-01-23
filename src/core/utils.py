@@ -373,6 +373,8 @@ def upload_files(
             else:
                 print("File already exists in S3 and will not be replaced.")
 
+            print('\n')
+
     except Exception as e:
         raise e
 
@@ -403,6 +405,7 @@ def boilerplate_warning():
             print("Invalid response.")
             continue
         elif response.lower().strip() in ("y", "yes"):
+            print("\n")
             break
         elif response.lower().strip() in ("n", "no"):
             exit()
