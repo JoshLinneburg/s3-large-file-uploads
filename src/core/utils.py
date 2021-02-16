@@ -1,6 +1,7 @@
 import boto3
 import os
 import sys
+import logging
 import threading
 import time
 from boto3.s3.transfer import TransferConfig
@@ -12,6 +13,9 @@ CONFIG = TransferConfig(
     multipart_chunksize=os.environ.get("multipart_chunksize") or 1024 * 25,
     use_threads=os.environ.get("use_threads") or True,
 )
+
+logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
+logger = logging.getLogger()
 
 
 class ProgressPercentage(object):
@@ -102,6 +106,12 @@ def check_object_exists(
         return True
     except s3_client.exceptions.NoSuchKey:
         return False
+    except ClientError as e:
+        if e.response["Error"]["Code"] == "InvalidObjectState":
+            logger.warning("Object exists but is in invalid state")
+            return True
+        else:
+            return False
 
 
 def upload_file_to_s3(
